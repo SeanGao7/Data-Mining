@@ -1,10 +1,10 @@
-/**
- * A Java implementation of the Apriori Aglorithm
- * Source dataSet shoudl be in the following format:
- * 1. Each line is considered as a transaction
- * 2. Each item in transaction is seperated by a space
- * 3. Assume each transaction is sorted
- */
+/*
+  A Java implementation of the Apriori Algorithm
+  Source dataSet should be in the following format:
+  1. Each line is considered as a transaction
+  2. Each item in transaction is separated by a space
+  3. Assume each transaction is sorted
+*/
 import java.io.*;
 import java.util.*;
 
@@ -18,14 +18,12 @@ public class Apriori {
     /* Path for the source data file */
     private String mDataFile;
 
-    /* Number of transactions */
-    private int numOfTransactions;
-
     /* The max number of size of transaction that met min support*/
     private int maxSize = 0;
 
-    /* Number of transactions */
+    /* The Frequent Item Set of Size 1 from constructor */
     private List<List<Integer>> oneDimensionFIS;
+
 
     /**
      * Constructor for the class
@@ -41,7 +39,6 @@ public class Apriori {
         // Construct a list of one item sets
         Map<Integer, Integer> atomicFIS = new HashMap<>();
         Map<Integer, Integer> sizeFrequency = new HashMap<>();
-        numOfTransactions = 0;
 
         try {
             BufferedReader dataBase
@@ -70,9 +67,8 @@ public class Apriori {
                 } else{
                     sizeFrequency.put(count, 1);
                 }
-
-                numOfTransactions++;
             }
+            dataBase.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -84,7 +80,6 @@ public class Apriori {
                 List<Integer> temp = new ArrayList<>();
                 temp.add(entry.getKey());
                 oneDimensionFIS.add(temp);
-
                 // Put the Set - frequency entry in result
                 mItemSet.put(temp, entry.getValue());
             }
@@ -95,6 +90,51 @@ public class Apriori {
                 maxSize = maxSize > entry.getKey() ? maxSize : entry.getKey();
             }
         }
+    }
+
+    /**
+     * Merge two set of size k - 1 to produce a super set of size k
+     * @param firstSet the first set to be merged
+     * @param secondSet the second set to be merged
+     * @return null if merged set > k, otherwise the merged set of size k
+     */
+    private List<Integer> mergeTwoSet(List<Integer> firstSet, List<Integer> secondSet){
+        int threshold = firstSet.size() + 1;
+
+        List<Integer> candidate = new ArrayList<>();
+
+        int firstIndex = 0;
+        int secondIndex = 0;
+
+        while ((firstIndex < firstSet.size() || secondIndex < secondSet.size())
+                && candidate.size() < threshold){
+            if (firstIndex == firstSet.size()){
+                // The end of first set is reached
+                candidate.add(secondSet.get(secondIndex++));
+
+            } else if (secondIndex == secondSet.size()){
+                // The end of second set is reached
+                candidate.add(firstSet.get(firstIndex++));
+
+            } else {
+                // Both sets still have candidates
+                if (firstSet.get(firstIndex).equals(secondSet.get(secondIndex))){
+                    candidate.add(firstSet.get(firstIndex++));
+                    secondIndex++;
+                } else if (firstSet.get(firstIndex) < secondSet.get(secondIndex)){
+                    candidate.add(firstSet.get(firstIndex++));
+                } else{
+                    candidate.add(secondSet.get(secondIndex++));
+                }
+            }
+        }
+
+        if (firstIndex == firstSet.size() || secondIndex == secondSet.size()){
+            // This is a valid candidate (contains all elements from first / second set)
+            return candidate;
+        }
+
+        return null;
     }
 
     /**
@@ -113,37 +153,13 @@ public class Apriori {
         // Creates new candidates by merging the previous sets
         for (int i = 0; i < lastCandidates.size(); i++){
             for (int j = i + 1; j < lastCandidates.size(); j++){
-                List<Integer> candidate = new ArrayList<>();
-
-                int firstIndex = 0;
                 List<Integer> firstSet = lastCandidates.get(i);
-                int secondIndex = 0;
                 List<Integer> secondSet = lastCandidates.get(j);
 
-                while ((firstIndex < firstSet.size() || secondIndex < secondSet.size())
-                        && candidate.size() < threshold){
-                    if (firstIndex == firstSet.size()){
-                        // The end of first set is reached
-                        candidate.add(secondSet.get(secondIndex++));
+                List<Integer> candidate = mergeTwoSet(firstSet, secondSet);
 
-                    } else if (secondIndex == secondSet.size()){
-                        // The end of second set is reached
-                        candidate.add(firstSet.get(firstIndex++));
+                if (candidate != null){
 
-                    } else {
-                        // Both sets still have candidates
-                        if (firstSet.get(firstIndex).equals(secondSet.get(secondIndex))){
-                            candidate.add(firstSet.get(firstIndex++));
-                            secondIndex++;
-                        } else if (firstSet.get(firstIndex) < secondSet.get(secondIndex)){
-                            candidate.add(firstSet.get(firstIndex++));
-                        } else{
-                            candidate.add(secondSet.get(secondIndex++));
-                        }
-                    }
-                }
-
-                if (firstIndex == firstSet.size() || secondIndex == secondSet.size()){
                     // This is a valid candidate (contains all elements from first / second set)
                     if (frequency.containsKey(candidate)){
                         frequency.put(candidate, frequency.get(candidate) + 1);
@@ -195,15 +211,24 @@ public class Apriori {
             frequency.put(i, 0);
         }
 
+        // Filtering the database using the items appeared frequent in FIS of size k - 1
+        Set<Integer> dict = new HashSet<>();
+        for (List<Integer> list : candidates){
+            dict.addAll(list);
+        }
+
         try {
             BufferedReader dataBase
                     = new BufferedReader(new InputStreamReader(new FileInputStream(new File(mDataFile))));
             while (dataBase.ready()) {
                 String line = dataBase.readLine();
                 StringTokenizer tokenizer = new StringTokenizer(line, " ");
-                List<Integer> transaction = new ArrayList<Integer>();
+                List<Integer> transaction = new ArrayList<>();
                 while(tokenizer.hasMoreElements()){
-                    transaction.add(Integer.parseInt(tokenizer.nextToken()));
+                    int temp = Integer.parseInt(tokenizer.nextToken());
+                    if (dict.contains(temp)){
+                        transaction.add(temp);
+                    }
                 }
 
                 if (transaction.size() < k){
@@ -219,6 +244,7 @@ public class Apriori {
                     }
                 }
             }
+            dataBase.close();
         } catch(IOException e) {
             e.printStackTrace();
         }
@@ -253,19 +279,50 @@ public class Apriori {
             }
             lastFIS = FIS;
         }
+    }
 
-        for (Map.Entry<List<Integer>,Integer> entry : mItemSet.entrySet()){
-            for (int i : entry.getKey()){
-                System.out.print(i + " ");
-            }
-            System.out.print("(" + entry.getValue() + ")\n");
+    private String listTOString(List<Integer> list){
+        StringBuilder res = new StringBuilder();
+        for (int i : list){
+            res.append(i).append(" ");
         }
+        return res.toString();
     }
 
     /**
      * Write the frequent item data sets to the specified output path
      */
-    private static void writeToOutput(String path){
+    private static void writeToOutput(String path, Apriori apriori){
+        ArrayList<List<Integer>> keys = new ArrayList<>(apriori.mItemSet.keySet());
+
+        keys.sort((o1, o2) -> {
+            int i = 0;
+            int j = 0;
+            while (i < o1.size() && j < o2.size()) {
+                if (o1.get(i).equals(o2.get(j))) {
+                    i++;
+                    j++;
+                } else if (o1.get(i) < o2.get(j)) {
+                    return -1;
+                } else {
+                    return 1;
+                }
+            }
+            if (i == o1.size() && j == o2.size()) {
+                return 0;
+            } else {
+                return i < o1.size() ? 1 : -1;
+            }
+        });
+        try{
+            BufferedWriter output = new BufferedWriter(new FileWriter(path, false));
+            for (List<Integer> list : keys){
+                output.write(apriori.listTOString(list) + "(" + apriori.mItemSet.get(list) + ")\n");
+            }
+            output.close();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
 
     }
 
@@ -281,10 +338,23 @@ public class Apriori {
             return;
         }
         int supportThreshold = Integer.parseInt(args[1]);
+        long startTime = System.nanoTime();
+
         Apriori apriori = new Apriori(args[0], supportThreshold);
 
+        apriori.generateFIS();
+        writeToOutput(args[2], apriori);
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime);
 
-        //Unit test for mergeSets
+        System.out.println("Run Time: " + duration / 1000000000.0);
+    }
+
+    /**
+     * Unit test for Utility methods in Apriori
+     * @param apriori The Apriori object constructed
+     */
+    private static void unitTesting(Apriori apriori){
         List<List<Integer>> input = new ArrayList<>();
 
         List<Integer> a = new ArrayList<>();
@@ -321,23 +391,13 @@ public class Apriori {
         List<List<Integer>> output = apriori.buildNewCandidates(input);
 
 
-        /*
-        List<Integer> input = new ArrayList<>();
-        input.add(1);
-        input.add(2);
-        input.add(3);
-        input.add(5);
+        List<Integer> input_2 = new ArrayList<>();
+        input_2.add(1);
+        input_2.add(2);
+        input_2.add(3);
+        input_2.add(5);
 
-        List<List<Integer>> output = apriori.subsetOfSizeK(input, 3);
-        */
-        for (List<Integer> l : output){
-            for (int i : l){
-                System.out.println(i);
-            }
-            System.out.println();
-        }
-
-        apriori.generateFIS();
-        writeToOutput(args[2]);
+        List<List<Integer>> output_2 = apriori.subsetOfSizeK(input_2, 3);
     }
 }
+
