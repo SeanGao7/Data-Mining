@@ -24,6 +24,9 @@ public class Apriori {
     /* The Frequent Item Set of Size 1 from constructor */
     private List<List<Integer>> oneDimensionFIS;
 
+    /* The set of lines to skip */
+    private Set<Integer> unwantedLines;
+
 
     /**
      * Constructor for the class
@@ -35,6 +38,7 @@ public class Apriori {
         mThreshold = supportThreshold;
         mDataFile = dataPath;
         mItemSet = new HashMap<>();
+        unwantedLines = new HashSet<>();
 
         // Construct a list of one item sets
         Map<Integer, Integer> atomicFIS = new HashMap<>();
@@ -198,7 +202,7 @@ public class Apriori {
 
     private List<List<Integer>> subsetOfSizeK(List<Integer> originalSet, int k){
         List<List<Integer>> res = new ArrayList<>();
-        List<Integer> temp = new ArrayList<>();
+        List<Integer> temp = new LinkedList<>();
         combinationUtil(originalSet, k, temp, 0, res);
         return res;
     }
@@ -211,6 +215,7 @@ public class Apriori {
             frequency.put(i, 0);
         }
 
+
         // Filtering the database using the items appeared frequent in FIS of size k - 1
         Set<Integer> dict = new HashSet<>();
         for (List<Integer> list : candidates){
@@ -220,8 +225,16 @@ public class Apriori {
         try {
             BufferedReader dataBase
                     = new BufferedReader(new InputStreamReader(new FileInputStream(new File(mDataFile))));
+            int lineCount = 0;
             while (dataBase.ready()) {
                 String line = dataBase.readLine();
+
+                if (unwantedLines.contains(lineCount)){
+                    // If this line did not produce any candidate, skip it
+                    lineCount++;
+                    continue;
+                }
+
                 StringTokenizer tokenizer = new StringTokenizer(line, " ");
                 List<Integer> transaction = new ArrayList<>();
                 while(tokenizer.hasMoreElements()){
@@ -233,16 +246,23 @@ public class Apriori {
 
                 if (transaction.size() < k){
                     // Skip since this transaction is too short
+                    lineCount++;
                     continue;
                 }
 
                 // Finds all subset of size k for this transaction
                 List<List<Integer>> subsets = subsetOfSizeK(transaction, k);
+                boolean empty = true;
                 for (List<Integer> set : subsets){
                     if (frequency.containsKey(set)){
+                        empty = false;
                         frequency.put(set, frequency.get(set) + 1);
                     }
                 }
+                if (empty){
+                    unwantedLines.add(lineCount);
+                }
+                lineCount++;
             }
             dataBase.close();
         } catch(IOException e) {
@@ -291,6 +311,8 @@ public class Apriori {
 
     /**
      * Write the frequent item data sets to the specified output path
+     * @param path The path to output file
+     * @param apriori The Apriori instance constructed
      */
     private static void writeToOutput(String path, Apriori apriori){
         ArrayList<List<Integer>> keys = new ArrayList<>(apriori.mItemSet.keySet());
@@ -314,6 +336,7 @@ public class Apriori {
                 return i < o1.size() ? 1 : -1;
             }
         });
+
         try{
             BufferedWriter output = new BufferedWriter(new FileWriter(path, false));
             for (List<Integer> list : keys){
