@@ -9,7 +9,6 @@ import java.io.*;
 import java.util.*;
 
 public class Apriori {
-    private static final int SWITCH = 20;
 
     /* Minimum support for frequent item set */
     private int mThreshold;
@@ -29,9 +28,8 @@ public class Apriori {
     /* The lines to be skipped */
     private Set<Integer> skipLines;
 
-
-    /* Which validate method to use */
-    private boolean useList;
+    /* Average number of items in database */
+    private int averageCount;
 
 
     /**
@@ -60,7 +58,7 @@ public class Apriori {
                 String transaction = dataBase.readLine();
                 StringTokenizer tokenizer = new StringTokenizer(transaction, " ");
                 List<Integer> line = new ArrayList<>();
-                Set<Integer> lineSet = new HashSet<>();
+                //Set<Integer> lineSet = new HashSet<>();
 
                 // Count of the number of items in this transaction
                 int count = 0;
@@ -68,7 +66,7 @@ public class Apriori {
                 while(tokenizer.hasMoreElements()){
                     int item = Integer.parseInt(tokenizer.nextToken());
                     line.add(item);
-                    lineSet.add(item);
+                    //lineSet.add(item);
                     if (atomicFIS.containsKey(item)){
                         atomicFIS.put(item, atomicFIS.get(item) + 1);
                     } else{
@@ -85,11 +83,11 @@ public class Apriori {
                 }
                 mDataList.add(line);
                 //mDataSet.add(lineSet);
-                wordCount+=count;
+                wordCount += count;
                 lineCount++;
             }
+            averageCount = wordCount / lineCount;
             dataBase.close();
-            useList = wordCount / lineCount <= SWITCH;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -188,7 +186,8 @@ public class Apriori {
         }
 
         List<int[]> res = new ArrayList<>();
-        threshold = threshold == 2 ? 1 : threshold;
+
+        threshold = threshold * (threshold - 1) / 2;
         for (SetWithFrequency entry: frequency.values()){
             // Prune the candidates which does not have all subsets being frequent
             if (entry.frequency == threshold){
@@ -233,9 +232,8 @@ public class Apriori {
             }
             boolean empty = true;
             Set<Integer> line = new HashSet<>();
-            for (int num : mDataList.get(i)){
-                line.add(num);
-            }
+            line.addAll(mDataList.get(i));
+
             for (SetWithFrequency candidate : frequency){
                 // Check if candidate is subset
                 boolean isSubset = true;
@@ -336,6 +334,17 @@ public class Apriori {
         return res;
     }
 
+    private boolean useList(int candidateNum, int n){
+        int setComplex = candidateNum * n + averageCount;
+        double listComplex = 1;
+        for (int i = averageCount; i > averageCount - n; i--){
+            listComplex *= i;
+            listComplex /= (averageCount - i + 1);
+        }
+        return setComplex >= listComplex;
+
+    }
+
     /**
      * Run the Apriori algorithm to compute the frequent item set
      */
@@ -343,18 +352,20 @@ public class Apriori {
         List<int[]> lastFIS = oneDimensionFIS;
         int n = 2;
         while (true){
-            long t = System.nanoTime();
+            //long t = System.nanoTime();
             List<int[]> candidates = buildNewCandidates(lastFIS);
             //System.out.println("Build new candidates: " + (System.nanoTime() - t) / 1000000000.0);
             //System.out.println("candidates: " + candidates.size());
             if (candidates.size() == 0){
                 break;
             }
-            t = System.nanoTime();
+            //t = System.nanoTime();
             List<int[]> FIS;
-            if (useList){
+            if (useList(candidates.size(), n)){
+                //System.out.println("Using List to validate.");
                 FIS = validateCandidatesWithList(candidates);
             } else{
+                //System.out.println("Using Set to validate.");
                 FIS = validateCandidatesWithSet(candidates);
             }
             //System.out.println("Validate: " + (System.nanoTime() - t) / 1000000000.0);
