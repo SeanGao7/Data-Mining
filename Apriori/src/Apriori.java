@@ -9,36 +9,43 @@ import java.io.*;
 import java.util.*;
 
 public class Apriori {
+    private static final int SWITCH = 20;
+
     /* Minimum support for frequent item set */
     private int mThreshold;
 
     /* The cached item set from last computation (last call of generateFIS) */
-    private Map<List<Integer>, Integer> mItemSet;
-
-    /* Path for the source data file */
-    private String mDataFile;
-
-    /* The max number of size of transaction that met min support*/
-    private int maxSize = 0;
+    private List<String> mItemSet;
 
     /* The Frequent Item Set of Size 1 from constructor */
-    private List<List<Integer>> oneDimensionFIS;
+    private List<int[]> oneDimensionFIS;
 
-    /* The set of lines to skip */
-    private Set<Integer> unwantedLines;
+    /* The database read from file in the form of List */
+    private List<List<Integer>> mDataList;
+
+    /* The database read from file in the form of Set */
+    //private List<Set<Integer>> mDataSet;
+
+    /* The lines to be skipped */
+    private Set<Integer> skipLines;
+
+
+    /* Which validate method to use */
+    private boolean useList;
 
 
     /**
      * Constructor for the class
      * Also prepares frequent item set of size 1 and counts the number of transactions
      * @param dataPath the path to the .dat file
-     * @param supportThreshold the threshold for support count
+     * @param supportThreshold the threshold for support frequency
      */
     public Apriori(String dataPath, int supportThreshold){
         mThreshold = supportThreshold;
-        mDataFile = dataPath;
-        mItemSet = new HashMap<>();
-        unwantedLines = new HashSet<>();
+        mItemSet = new LinkedList<>();
+        mDataList = new ArrayList<>();
+        skipLines = new HashSet<>();
+       // mDataSet = new ArrayList<>();
 
         // Construct a list of one item sets
         Map<Integer, Integer> atomicFIS = new HashMap<>();
@@ -46,17 +53,22 @@ public class Apriori {
 
         try {
             BufferedReader dataBase
-                    = new BufferedReader(new InputStreamReader(new FileInputStream(new File(mDataFile))));
+                    = new BufferedReader(new InputStreamReader(new FileInputStream(new File(dataPath))));
+            int lineCount = 0;
+            int wordCount = 0;
             while (dataBase.ready()){
                 String transaction = dataBase.readLine();
                 StringTokenizer tokenizer = new StringTokenizer(transaction, " ");
+                List<Integer> line = new ArrayList<>();
+                Set<Integer> lineSet = new HashSet<>();
 
                 // Count of the number of items in this transaction
                 int count = 0;
 
                 while(tokenizer.hasMoreElements()){
                     int item = Integer.parseInt(tokenizer.nextToken());
-
+                    line.add(item);
+                    lineSet.add(item);
                     if (atomicFIS.containsKey(item)){
                         atomicFIS.put(item, atomicFIS.get(item) + 1);
                     } else{
@@ -71,8 +83,13 @@ public class Apriori {
                 } else{
                     sizeFrequency.put(count, 1);
                 }
+                mDataList.add(line);
+                //mDataSet.add(lineSet);
+                wordCount+=count;
+                lineCount++;
             }
             dataBase.close();
+            useList = wordCount / lineCount <= SWITCH;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -81,17 +98,11 @@ public class Apriori {
 
         for (Map.Entry<Integer, Integer> entry : atomicFIS.entrySet()){
             if (entry.getValue() >= mThreshold){
-                List<Integer> temp = new ArrayList<>();
-                temp.add(entry.getKey());
+                int[] temp = new int[1];
+                temp[0] = entry.getKey();
                 oneDimensionFIS.add(temp);
                 // Put the Set - frequency entry in result
-                mItemSet.put(temp, entry.getValue());
-            }
-        }
-
-        for (Map.Entry<Integer, Integer> entry : sizeFrequency.entrySet()){
-            if (entry.getValue() >= mThreshold){
-                maxSize = maxSize > entry.getKey() ? maxSize : entry.getKey();
+                mItemSet.add(entry.getKey() + "(" + entry.getValue() + ")\n");
             }
         }
     }
@@ -102,38 +113,38 @@ public class Apriori {
      * @param secondSet the second set to be merged
      * @return null if merged set > k, otherwise the merged set of size k
      */
-    private List<Integer> mergeTwoSet(List<Integer> firstSet, List<Integer> secondSet){
-        int threshold = firstSet.size() + 1;
+    private int[] mergeTwoSet(int[] firstSet, int[] secondSet){
+        int threshold = firstSet.length + 1;
 
-        List<Integer> candidate = new ArrayList<>();
+        int[] candidate = new int[threshold];
 
         int firstIndex = 0;
         int secondIndex = 0;
+        int index = 0;
 
-        while ((firstIndex < firstSet.size() || secondIndex < secondSet.size())
-                && candidate.size() < threshold){
-            if (firstIndex == firstSet.size()){
+        while ((firstIndex < firstSet.length || secondIndex < secondSet.length) && index < threshold){
+            if (firstIndex == firstSet.length){
                 // The end of first set is reached
-                candidate.add(secondSet.get(secondIndex++));
+                candidate[index] = secondSet[secondIndex++];
 
-            } else if (secondIndex == secondSet.size()){
+            } else if (secondIndex == secondSet.length){
                 // The end of second set is reached
-                candidate.add(firstSet.get(firstIndex++));
-
+                candidate[index] = firstSet[firstIndex++];
             } else {
                 // Both sets still have candidates
-                if (firstSet.get(firstIndex).equals(secondSet.get(secondIndex))){
-                    candidate.add(firstSet.get(firstIndex++));
+                if (firstSet[firstIndex] == secondSet[secondIndex]){
+                    candidate[index] = firstSet[firstIndex++];
                     secondIndex++;
-                } else if (firstSet.get(firstIndex) < secondSet.get(secondIndex)){
-                    candidate.add(firstSet.get(firstIndex++));
+                } else if (firstSet[firstIndex] < secondSet[secondIndex]){
+                    candidate[index] = firstSet[firstIndex++];
                 } else{
-                    candidate.add(secondSet.get(secondIndex++));
+                    candidate[index] = secondSet[secondIndex++];
                 }
             }
+            index++;
         }
 
-        if (firstIndex == firstSet.size() || secondIndex == secondSet.size()){
+        if (firstIndex == firstSet.length && secondIndex == secondSet.length){
             // This is a valid candidate (contains all elements from first / second set)
             return candidate;
         }
@@ -148,38 +159,40 @@ public class Apriori {
      * @param lastCandidates the frequent item set of size k - 1
      * @return the new list of candidates
      */
-    private List<List<Integer>> buildNewCandidates(List<List<Integer>> lastCandidates){
-        Map<List<Integer>, Integer> frequency = new HashMap<>();
+    private List<int[]> buildNewCandidates(List<int[]> lastCandidates){
+        Map<String, SetWithFrequency> frequency = new HashMap<>();
 
         // Set the threshold to be k
-        int threshold = lastCandidates.get(0).size() + 1;
+        int threshold = lastCandidates.get(0).length + 1;
 
         // Creates new candidates by merging the previous sets
         for (int i = 0; i < lastCandidates.size(); i++){
             for (int j = i + 1; j < lastCandidates.size(); j++){
-                List<Integer> firstSet = lastCandidates.get(i);
-                List<Integer> secondSet = lastCandidates.get(j);
+                int[] firstSet = lastCandidates.get(i);
+                int[] secondSet = lastCandidates.get(j);
 
-                List<Integer> candidate = mergeTwoSet(firstSet, secondSet);
+                int[] candidate = mergeTwoSet(firstSet, secondSet);
 
                 if (candidate != null){
 
                     // This is a valid candidate (contains all elements from first / second set)
-                    if (frequency.containsKey(candidate)){
-                        frequency.put(candidate, frequency.get(candidate) + 1);
+                    String key = arrayToString(candidate);
+
+                    if (frequency.containsKey(key)){
+                        frequency.get(key).frequency++;
                     } else{
-                        frequency.put(candidate, 1);
+                        frequency.put(key, new SetWithFrequency(key, candidate, 1));
                     }
                 }
             }
         }
 
-        List<List<Integer>> res = new ArrayList<>();
+        List<int[]> res = new ArrayList<>();
         threshold = threshold == 2 ? 1 : threshold;
-        for (Map.Entry<List<Integer>, Integer> entry: frequency.entrySet()){
+        for (SetWithFrequency entry: frequency.values()){
             // Prune the candidates which does not have all subsets being frequent
-            if (entry.getValue() >= threshold){
-                res.add(entry.getKey());
+            if (entry.frequency == threshold){
+                res.add(entry.set);
             }
         }
 
@@ -191,91 +204,132 @@ public class Apriori {
             res.add(new ArrayList<>(temp));
             return;
         }
-        if (index >= data.size()){
-            return;
+        for(int i = index; i < data.size(); i++){
+            temp.add(data.get(i));
+            combinationUtil(data, k, temp, i + 1, res);
+            temp.remove(temp.size() - 1);
         }
-        temp.add(data.get(index));
-        combinationUtil(data, k, temp, index + 1, res);
-        temp.remove(temp.size() - 1);
-        combinationUtil(data, k, temp, index + 1, res);
     }
 
     private List<List<Integer>> subsetOfSizeK(List<Integer> originalSet, int k){
         List<List<Integer>> res = new ArrayList<>();
-        List<Integer> temp = new LinkedList<>();
+        List<Integer> temp = new ArrayList<>(k);
         combinationUtil(originalSet, k, temp, 0, res);
         return res;
     }
 
-    private List<List<Integer>> validateCandidates(List<List<Integer>> candidates){
-        int k = candidates.get(0).size();
+    // This method is good when the data base has long entries
+    private List<int[]> validateCandidatesWithSet(List<int[]> candidates) {
+        List<SetWithFrequency> frequency = new LinkedList<>();
 
-        Map<List<Integer>, Integer> frequency = new HashMap<>();
-        for (List<Integer> i : candidates){
-            frequency.put(i, 0);
+        for (int[] candidate : candidates){
+            String key = arrayToString(candidate);
+            frequency.add(new SetWithFrequency(key, candidate, 0));
+        }
+
+        for (int i = 0; i < mDataList.size(); i++){
+            if (skipLines.contains(i)){
+                continue;
+            }
+            boolean empty = true;
+            Set<Integer> line = new HashSet<>();
+            for (int num : mDataList.get(i)){
+                line.add(num);
+            }
+            for (SetWithFrequency candidate : frequency){
+                // Check if candidate is subset
+                boolean isSubset = true;
+                for (int n : candidate.set){
+                    if (!line.contains(n)){
+                        isSubset = false;
+                        break;
+                    }
+                }
+                if (isSubset){
+                    empty = false;
+                    candidate.frequency++;
+                }
+            }
+            if (empty){
+                skipLines.add(i);
+            }
+        }
+
+        List<int[]> res = new ArrayList<>();
+        for (SetWithFrequency entry : frequency){
+            if (entry.frequency >= mThreshold){
+                res.add(entry.set);
+
+                // Put the Set - frequency entry in result
+                mItemSet.add(entry.key + "(" + entry.frequency + ")\n");
+            }
+        }
+
+        return res;
+    }
+
+    // This method is good when the data base has relatively short
+    private List<int[]> validateCandidatesWithList(List<int[]> candidates){
+        int size = candidates.get(0).length;
+
+        Map<String, SetWithFrequency> frequency = new HashMap<>();
+        for (int[] candidate : candidates){
+            String key = arrayToString(candidate);
+            frequency.put(key, new SetWithFrequency(key, candidate, 0));
         }
 
 
         // Filtering the database using the items appeared frequent in FIS of size k - 1
+
         Set<Integer> dict = new HashSet<>();
-        for (List<Integer> list : candidates){
-            dict.addAll(list);
-        }
-
-        try {
-            BufferedReader dataBase
-                    = new BufferedReader(new InputStreamReader(new FileInputStream(new File(mDataFile))));
-            int lineCount = 0;
-            while (dataBase.ready()) {
-                String line = dataBase.readLine();
-
-                if (unwantedLines.contains(lineCount)){
-                    // If this line did not produce any candidate, skip it
-                    lineCount++;
-                    continue;
-                }
-
-                StringTokenizer tokenizer = new StringTokenizer(line, " ");
-                List<Integer> transaction = new ArrayList<>();
-                while(tokenizer.hasMoreElements()){
-                    int temp = Integer.parseInt(tokenizer.nextToken());
-                    if (dict.contains(temp)){
-                        transaction.add(temp);
-                    }
-                }
-
-                if (transaction.size() < k){
-                    // Skip since this transaction is too short
-                    lineCount++;
-                    continue;
-                }
-
-                // Finds all subset of size k for this transaction
-                List<List<Integer>> subsets = subsetOfSizeK(transaction, k);
-                boolean empty = true;
-                for (List<Integer> set : subsets){
-                    if (frequency.containsKey(set)){
-                        empty = false;
-                        frequency.put(set, frequency.get(set) + 1);
-                    }
-                }
-                if (empty){
-                    unwantedLines.add(lineCount);
-                }
-                lineCount++;
+        for (int[] list : candidates){
+            for (int num : list){
+                dict.add(num);
             }
-            dataBase.close();
-        } catch(IOException e) {
-            e.printStackTrace();
         }
 
-        List<List<Integer>> res = new ArrayList<>();
-        for (Map.Entry<List<Integer>, Integer> entry : frequency.entrySet()){
-            if (entry.getValue() >= mThreshold){
-                res.add(entry.getKey());
+        for (int i = 0; i < mDataList.size(); i++) {
+            if (skipLines.contains(i)){
+                continue;
+            }
+
+            List<Integer> transaction = mDataList.get(i);
+
+            // Remove the item not in dictionary (still frequent set)
+            transaction.removeIf(p -> !dict.contains(p));
+
+            if (transaction.size() < size){
+                skipLines.add(i);
+                continue;
+            }
+
+            // Finds all subset of size k for this transaction
+
+            List<List<Integer>> subsets = subsetOfSizeK(transaction, size);
+
+            boolean empty = true;
+
+            for (List<Integer> subset : subsets){
+                String key = listToString(subset);
+                if (frequency.containsKey(key)){
+                    empty = false;
+                    frequency.get(key).frequency++;
+                }
+            }
+
+            if (empty){
+                skipLines.add(i);
+            }
+        }
+
+
+        List<int[]> res = new ArrayList<>();
+        for (SetWithFrequency entry : frequency.values()){
+            if (entry.frequency >= mThreshold){
+                res.add(entry.set);
 
                 // Put the Set - frequency entry in result
-                mItemSet.put(entry.getKey(), entry.getValue());
+                mItemSet.add(entry.key + "(" + entry.frequency + ")\n");
             }
         }
 
@@ -286,22 +340,42 @@ public class Apriori {
      * Run the Apriori algorithm to compute the frequent item set
      */
     public void generateFIS(){
-        List<List<Integer>> lastFIS = oneDimensionFIS;
-
-        for (int k = 2; k <= maxSize; k++){
-            List<List<Integer>> candidates = buildNewCandidates(lastFIS);
+        List<int[]> lastFIS = oneDimensionFIS;
+        int n = 2;
+        while (true){
+            long t = System.nanoTime();
+            List<int[]> candidates = buildNewCandidates(lastFIS);
+            //System.out.println("Build new candidates: " + (System.nanoTime() - t) / 1000000000.0);
+            //System.out.println("candidates: " + candidates.size());
             if (candidates.size() == 0){
                 break;
             }
-            List<List<Integer>> FIS = validateCandidates(candidates);
+            t = System.nanoTime();
+            List<int[]> FIS;
+            if (useList){
+                FIS = validateCandidatesWithList(candidates);
+            } else{
+                FIS = validateCandidatesWithSet(candidates);
+            }
+            //System.out.println("Validate: " + (System.nanoTime() - t) / 1000000000.0);
+            //System.out.println("New FIS: " + FIS.size());
             if (FIS.size() == 0){
                 break;
             }
             lastFIS = FIS;
+            n++;
         }
     }
 
-    private String listTOString(List<Integer> list){
+    private String arrayToString(int[] list){
+        StringBuilder res = new StringBuilder();
+        for (int i : list){
+            res.append(i).append(" ");
+        }
+        return res.toString();
+    }
+
+    private String listToString(List<Integer> list){
         StringBuilder res = new StringBuilder();
         for (int i : list){
             res.append(i).append(" ");
@@ -315,49 +389,42 @@ public class Apriori {
      * @param apriori The Apriori instance constructed
      */
     private static void writeToOutput(String path, Apriori apriori){
-        ArrayList<List<Integer>> keys = new ArrayList<>(apriori.mItemSet.keySet());
-
-        keys.sort((o1, o2) -> {
-            int i = 0;
-            int j = 0;
-            while (i < o1.size() && j < o2.size()) {
-                if (o1.get(i).equals(o2.get(j))) {
-                    i++;
-                    j++;
-                } else if (o1.get(i) < o2.get(j)) {
-                    return -1;
-                } else {
-                    return 1;
-                }
-            }
-            if (i == o1.size() && j == o2.size()) {
-                return 0;
-            } else {
-                return i < o1.size() ? 1 : -1;
-            }
-        });
-
         try{
             BufferedWriter output = new BufferedWriter(new FileWriter(path, false));
-            for (List<Integer> list : keys){
-                output.write(apriori.listTOString(list) + "(" + apriori.mItemSet.get(list) + ")\n");
+            for (String s : apriori.mItemSet){
+                output.write(s);
             }
             output.close();
         } catch (IOException e){
             e.printStackTrace();
         }
+    }
 
+    /**
+     * Since using List as key is expensive, To better utilize the efficiency of HashMap and the flexibility of array
+     * This data structure is designed as a container both for easy hashing.
+     */
+    private class SetWithFrequency {
+        String key;
+        int[] set;
+        int frequency;
+
+        SetWithFrequency(String key, int[] set, int frequency){
+            this.key = key;
+            this.set = set;
+            this.frequency = frequency;
+        }
     }
 
     /**
      * Main function to be executed
      * @param args 1st argument as the path to data file
-     *             2nd argument as the support count thershold
+     *             2nd argument as the support frequency thershold
      *             3rd argument as the path to output file
      */
     public static void main(String[] args){
         if (args.length < 3){
-            System.out.println("Please specify data path, support count and output path");
+            System.out.println("Please specify data path, support frequency and output path");
             return;
         }
         int supportThreshold = Integer.parseInt(args[1]);
@@ -371,56 +438,6 @@ public class Apriori {
         long duration = (endTime - startTime);
 
         System.out.println("Run Time: " + duration / 1000000000.0);
-    }
-
-    /**
-     * Unit test for Utility methods in Apriori
-     * @param apriori The Apriori object constructed
-     */
-    private static void unitTesting(Apriori apriori){
-        List<List<Integer>> input = new ArrayList<>();
-
-        List<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
-
-        List<Integer> b = new ArrayList<>();
-        b.add(2);
-        b.add(3);
-        b.add(4);
-
-        List<Integer> c = new ArrayList<>();
-        c.add(1);
-        c.add(2);
-        c.add(4);
-
-        List<Integer> d = new ArrayList<>();
-        d.add(1);
-        d.add(4);
-        d.add(5);
-
-        List<Integer> e = new ArrayList<>();
-        e.add(1);
-        e.add(3);
-        e.add(4);
-
-        input.add(a);
-        input.add(b);
-        input.add(c);
-        input.add(d);
-        input.add(e);
-
-        List<List<Integer>> output = apriori.buildNewCandidates(input);
-
-
-        List<Integer> input_2 = new ArrayList<>();
-        input_2.add(1);
-        input_2.add(2);
-        input_2.add(3);
-        input_2.add(5);
-
-        List<List<Integer>> output_2 = apriori.subsetOfSizeK(input_2, 3);
     }
 }
 
