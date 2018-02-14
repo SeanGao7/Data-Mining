@@ -43,7 +43,6 @@ public class Apriori {
         mItemSet = new LinkedList<>();
         mDataList = new ArrayList<>();
         skipLines = new HashSet<>();
-       // mDataSet = new ArrayList<>();
 
         // Construct a list of one item sets
         Map<Integer, Integer> atomicFIS = new HashMap<>();
@@ -58,7 +57,6 @@ public class Apriori {
                 String transaction = dataBase.readLine();
                 StringTokenizer tokenizer = new StringTokenizer(transaction, " ");
                 List<Integer> line = new ArrayList<>();
-                //Set<Integer> lineSet = new HashSet<>();
 
                 // Count of the number of items in this transaction
                 int count = 0;
@@ -217,7 +215,14 @@ public class Apriori {
         return res;
     }
 
-    // This method is good when the data base has long entries
+    /**
+     * Use the Brute Force Algorithm to count the frequency of each candidate
+     * Traverse the database to build the database as sets
+     * Then traverse the candidate set to count their frequency
+     * This method has better performance than using List when the transactions are long
+     * @param candidates candidates to be validated
+     * @return A list of candidates met the min support count
+     */
     private List<int[]> validateCandidatesWithSet(List<int[]> candidates) {
         List<SetWithFrequency> frequency = new LinkedList<>();
 
@@ -266,7 +271,13 @@ public class Apriori {
         return res;
     }
 
-    // This method is good when the data base has relatively short
+    /**
+     * Use the subset generation method to count the frequency
+     * Generate subset of size k for each transaction and update the Map having all candidates as keys
+     * This method has better performance than using List when candidate set is long
+     * @param candidates candidates to be validated
+     * @return A list of candidates met the min support count
+     */
     private List<int[]> validateCandidatesWithList(List<int[]> candidates){
         int size = candidates.get(0).length;
 
@@ -352,24 +363,18 @@ public class Apriori {
         List<int[]> lastFIS = oneDimensionFIS;
         int n = 2;
         while (true){
-            //long t = System.nanoTime();
+
             List<int[]> candidates = buildNewCandidates(lastFIS);
-            //System.out.println("Build new candidates: " + (System.nanoTime() - t) / 1000000000.0);
-            //System.out.println("candidates: " + candidates.size());
+
             if (candidates.size() == 0){
                 break;
             }
-            //t = System.nanoTime();
             List<int[]> FIS;
             if (useList(candidates.size(), n)){
-                //System.out.println("Using List to validate.");
                 FIS = validateCandidatesWithList(candidates);
             } else{
-                //System.out.println("Using Set to validate.");
                 FIS = validateCandidatesWithSet(candidates);
             }
-            //System.out.println("Validate: " + (System.nanoTime() - t) / 1000000000.0);
-            //System.out.println("New FIS: " + FIS.size());
             if (FIS.size() == 0){
                 break;
             }
