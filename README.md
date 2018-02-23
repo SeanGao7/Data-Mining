@@ -1,2 +1,2 @@
 # Data-Mining
-Collection of work for Data Mining course work
+Collection of data-mining algorithms implemented in Java
