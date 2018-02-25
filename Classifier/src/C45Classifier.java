@@ -10,6 +10,10 @@ public class C45Classifier {
     private List<List<String>> mDataBase;
     private Node root;
 
+    /**
+     * Import the data form file and build the decision tree using gain ratio as evaluation
+     * @param dataBase the path to the training data file
+     */
     public C45Classifier(String dataBase){
         importDatabase(dataBase);
 
@@ -124,11 +128,11 @@ public class C45Classifier {
     }
 
     /**
-     * Test the test dadaist and write the output
+     * Test the test data set and write the output
      * @param testPath the path to the test file
      * @param outputPath the path to the output file
      */
-    private void testData(String testPath, String outputPath){
+    private void test(String testPath, String outputPath){
         try {
             BufferedReader test
                     = new BufferedReader(new InputStreamReader(new FileInputStream(new File(testPath))));
@@ -143,7 +147,7 @@ public class C45Classifier {
                 while (tokenizer.hasMoreElements()){
                     dataLine.add(tokenizer.nextToken());
                 }
-                String res = test(dataLine);
+                String res = predict(dataLine);
                 System.out.println(res);
                 if (res.equals(dataLine.get(0))){
                     correctCount++;
@@ -151,7 +155,7 @@ public class C45Classifier {
                     falseCount++;
                 }
             }
-            System.out.println("Number of data tested: " + correctCount + falseCount);
+            System.out.println("Number of data tested: " + (correctCount + falseCount));
             System.out.println("Correct Labels generated: " + correctCount);
             System.out.println("False labels generated: " + falseCount);
             System.out.println("Accuracy: " + correctCount * 1.0 / (correctCount + falseCount));
@@ -165,7 +169,7 @@ public class C45Classifier {
      * @param data A list containing all the attributes
      * @return The string representing the predicted class
      */
-    private String test(List<String> data){
+    private String predict(List<String> data){
         Node pointer = root;
         while (pointer.mDecision == null){
             pointer = pointer.children.get(data.get(pointer.mFeature));
@@ -174,9 +178,16 @@ public class C45Classifier {
         return pointer.mDecision;
     }
 
+    /**
+     * Main Function to be executed
+     * @param args Has the following structure:
+     *             1st argument: path to training data
+     *             2nd argument: path to test data
+     *             3rd argument: path to output
+     */
     public static void main(String[] args){
         C45Classifier classifier = new C45Classifier(args[0]);
-        classifier.testData(args[1], args[2]);
+        classifier.test(args[1], args[2]);
     }
 
     /**

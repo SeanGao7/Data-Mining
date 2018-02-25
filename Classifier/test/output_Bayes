@@ -100,7 +100,7 @@ e
 p
 p
 p
-e
+p
 p
 p
 p
@@ -699,7 +699,7 @@ p
 p
 e
 e
-Number of data tested: 7010
-Correct Labels generated: 701
-False labels generated: 0
-Accuracy: 1.0
+Number of data tested: 701
+Correct Labels generated: 700
+False labels generated: 1
+Accuracy: 0.9985734664764622
