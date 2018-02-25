@@ -84,6 +84,11 @@ public class C45Classifier {
         }
     }
 
+    /**
+     * Utility function to test if a partition has the same label
+     * @param dataIndex A list representing the partition to be tested
+     * @return the result of such test
+     */
     private boolean isHomogeneous(List<Integer> dataIndex){
         String label = mDataBase.get(dataIndex.get(0)).get(0);
         for (int i : dataIndex){
@@ -118,6 +123,11 @@ public class C45Classifier {
         }
     }
 
+    /**
+     * Test the test dadaist and write the output
+     * @param testPath the path to the test file
+     * @param outputPath the path to the output file
+     */
     private void testData(String testPath, String outputPath){
         try {
             BufferedReader test
@@ -142,12 +152,19 @@ public class C45Classifier {
                 }
             }
             System.out.println("Number of data tested: " + correctCount + falseCount);
+            System.out.println("Correct Labels generated: " + correctCount);
+            System.out.println("False labels generated: " + falseCount);
             System.out.println("Accuracy: " + correctCount * 1.0 / (correctCount + falseCount));
         } catch (Exception e){
             e.printStackTrace();
         }
     }
 
+    /**
+     * Traverse the decision tree to predict the label
+     * @param data A list containing all the attributes
+     * @return The string representing the predicted class
+     */
     private String test(List<String> data){
         Node pointer = root;
         while (pointer.mDecision == null){

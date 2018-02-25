@@ -700,4 +700,6 @@ p
 e
 e
 Number of data tested: 7010
+Correct Labels generated: 701
+False labels generated: 0
 Accuracy: 1.0

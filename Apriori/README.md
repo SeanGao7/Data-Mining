@@ -1,4 +1,6 @@
 # Apriori Algorithm Implementation in Java
+A fast implementation of Apriori Algorithm written in Java
+
 #	Compilation and usage
     o	Java SDK 1.8 required as predicate is used to improve performance
     o	To compile: javc Apriori.java
