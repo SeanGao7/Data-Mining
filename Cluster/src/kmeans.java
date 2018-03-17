@@ -32,7 +32,7 @@ public class kmeans {
                     }
                 }
 
-                minPartition.addPoint(point, minDistance);
+                minPartition.addPoint(point, Math.pow(minDistance, 2));
             }
 
             System.out.println("Points");
@@ -243,6 +243,11 @@ public class kmeans {
             counter++;
         }
 
+        double sum = 0;
+        for (Partition p: clusters){
+            sum += p.SSD;
+        }
+        System.out.println(sum);
     }
 
     public static void main(String[] args){
