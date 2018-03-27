@@ -1,13 +1,18 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 
+/**
+ * A java implementation of the k-means Classifier
+ */
 public class kmeans {
     List<List<Double>> mDataBase;
     List<Partition> clusters;
 
+    /**
+     * A constructor for the class, read the data from file and ran kmeans clustering
+     * @param k Number of clusters
+     * @param dataPath the path to data file
+     */
     public kmeans(int k, String dataPath){
         mDataBase = importData(dataPath);
 
@@ -15,10 +20,6 @@ public class kmeans {
         clusters = generateInitialPartitions(k);
 
         while (true){
-            System.out.println("Centers");
-            for (Partition lst: clusters){
-                System.out.println(lst.center);
-            }
 
             for (List<Double> point: mDataBase){
                 Partition minPartition = null;
@@ -33,11 +34,6 @@ public class kmeans {
                 }
 
                 minPartition.addPoint(point, Math.pow(minDistance, 2));
-            }
-
-            System.out.println("Points");
-            for (Partition lst: clusters){
-                System.out.println(lst.points);
             }
 
             List<Partition> newPartitions = new ArrayList<>();
@@ -56,26 +52,11 @@ public class kmeans {
         }
     }
 
-    private int[] generateKRandomIndexes(int k){
-        int n = mDataBase.size();
-
-        int[] indexes = new int[n];
-        int[] res= new int[k];
-
-        for (int i = 0; i < n; i++){
-            indexes[i] = i;
-        }
-
-        for (int i = 0; i < k; i++){
-            int index = (int) (Math.random() * (n - i));
-            res[i] = indexes[index];
-            indexes[index] = indexes[n - 1 -i];
-        }
-
-        return res;
-
-    }
-
+    /**
+     * Generate k random initial centroids by selecting k indexes from data entry
+     * @param k the number of partitions
+     * @return a list of centroids
+     */
     private List<Partition> generateInitialPartitions(int k){
         List<Partition> clusters = new ArrayList<>();
 
@@ -118,59 +99,17 @@ public class kmeans {
             clusters.add(new Partition(mDataBase.get(index)));
         }
 
-        /*
-        int dimension = mDataBase.get(0).size();
-
-        double[] max = new double[dimension];
-        double[] min = new double[dimension];
-
-        for (int i = 0; i < dimension; i++){
-            max[i] = Integer.MIN_VALUE;
-            min[i] = Integer.MAX_VALUE;
-        }
-
-        for (List<Double> point: mDataBase){
-            for (int i = 0; i < dimension; i++){
-                max[i] = Math.max(max[i], point.get(i));
-                min[i] = Math.min(min[i], point.get(i));
-            }
-        }
-
-        Set<List<Double>> set = new HashSet<>();
-        Random r = new Random();
-
-        for (int i = 0; i < k; i++){
-            List<Double> list;
-            do{
-                list = new ArrayList<>();
-                for (int j = 0; j < dimension; j++){
-                    list.add(min[j] + (max[j] - min[j]) * r.nextDouble());
-                }
-            } while (set.contains(list));
-            set.add(list);
-        }
-
-        for (List<Double> lst: set){
-            clusters.add(new Partition(lst));
-        }
-
-        //
-
-
-        for (int i : generateKRandomIndexes(k)){
-            clusters.add(new Partition(mDataBase.get(i)));
-        }
-        */
-
         return clusters;
     }
 
+    /**
+     * Compute the center of the given points by averaging their coordiantes
+     * @param points a list of points to compute the center
+     * @return the center computed
+     */
     private static List<Double> computeCenter(List<List<Double>> points){
         assert points.size() > 1;
         double weight = 1.0 / points.size();
-        System.out.println("Weights");
-        System.out.println(points.size());
-        System.out.println(weight);
         int dimension = points.get(0).size();
 
         List<Double> center = new ArrayList<>(dimension);
@@ -187,6 +126,12 @@ public class kmeans {
         return center;
     }
 
+    /**
+     * Compute the euclidean distance between given points
+     * @param pointA the first point
+     * @param pointB the second point
+     * @return the euclidean distance computed
+     */
     private static double computeDistance(List<Double> pointA, List<Double> pointB){
         double squaredSum = 0;
 
@@ -199,6 +144,12 @@ public class kmeans {
         return Math.sqrt(squaredSum);
     }
 
+    /**
+     * Parse data into a list od list of doubles
+     * Assume data are separated by comma, with each line represents one point
+     * @param dataPath the path to the data file
+     * @return a list points represented in list of doubles
+     */
     private List<List<Double>> importData(String dataPath){
         List<List<Double>> res = new ArrayList<>();
         try {
@@ -224,14 +175,45 @@ public class kmeans {
         } catch (Exception e){
             e.printStackTrace();
         }
-        for (List<Double> list: res){
-            System.out.println(list);
+
+        // Normalize tha data
+        assert res.size() > 1;
+
+        double[] min = new double[res.get(0).size()];
+        double[] max = new double[res.get(0).size()];
+
+        for (int i = 0; i < min.length; i++){
+            min[i] = Integer.MAX_VALUE;
+            max[i] = Integer.MIN_VALUE;
         }
+
+        for (List<Double> list: res){
+            for (int i = 0; i < list.size(); i++){
+                min[i] = Math.min(min[i], list.get(i));
+                max[i] = Math.max(max[i], list.get(i));
+            }
+        }
+
+        for (List<Double> list: res){
+            for (int i = 0; i < list.size(); i++){
+                list.set(i, (list.get(i) - min[i]) / (max[i] - min[i]));
+            }
+        }
+
         return res;
     }
 
+    /**
+     * Write the output into the path specified and report the SSE
+     * @param outputPath the path to the output file
+     */
     public void output(String outputPath){
-        int counter = 0;
+        try {
+            PrintStream out = new PrintStream(new File(outputPath));
+            System.setOut(out);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
         for (List<Double> lst: mDataBase){
 
             for (int i = 0; i < clusters.size(); i++){
@@ -240,21 +222,24 @@ public class kmeans {
                 }
             }
 
-            counter++;
         }
 
         double sum = 0;
         for (Partition p: clusters){
             sum += p.SSD;
         }
+        System.out.print("SSE: ");
         System.out.println(sum);
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         kmeans cluster = new kmeans(Integer.parseInt(args[1]), args[0]);
         cluster.output(args[2]);
     }
 
+    /**
+     * A container class represent each cluster
+     */
     private static class Partition{
         List<Double> center;
         List<List<Double>> points;
@@ -264,10 +249,6 @@ public class kmeans {
             this.center = new ArrayList<>(center);
             points = new ArrayList<>();
             SSD = 0;
-        }
-
-        double getSSD(){
-            return SSD;
         }
 
         void addPoint(List<Double> point, double distance){

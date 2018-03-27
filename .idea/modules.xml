@@ -3,8 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Apriori/Apriori.iml" filepath="$PROJECT_DIR$/Apriori/Apriori.iml" />
-      <module fileurl="file://$PROJECT_DIR$/Bayes/Bayes &amp; C4.5.iml" filepath="$PROJECT_DIR$/Bayes/Bayes &amp; C4.5.iml" />
       <module fileurl="file://$PROJECT_DIR$/Classifier/Classifier.iml" filepath="$PROJECT_DIR$/Classifier/Classifier.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Cluster/Cluster.iml" filepath="$PROJECT_DIR$/Cluster/Cluster.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Data-Mining.iml" filepath="$PROJECT_DIR$/.idea/Data-Mining.iml" />
     </modules>
   </component>
